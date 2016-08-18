@@ -1,0 +1,73 @@
+﻿
+Console.WriteLine("Headline:{0}\tArticleURL:{1}\tPublishDate:{2}\tSource:{3}", 
+                                                        article.HeadLine,
+                                                        article.ArticleURL, 
+                                                        article.PublishDate, 
+                                                        article.Source
+                                                        );
+                }
+
+
+
+dynamic contentObject = (JObject) JsonConvert.DeserializeObject(content);
+                //var jsonResult = (JObject)contentObject["response"];
+                //var jsonArticles = jsonResult["docs"];
+                //var docs = JsonConvert.DeserializeObject<List<docs>>(JsonConvert.SerializeObject(jsonArticles));
+                var articles = ((IEnumerable<dynamic>)contentObject.response.docs).Select(d => new Article
+                {
+                    ArticleURL = d.web_url,
+                    Headline = d.headline.main,
+                    Source = d.source,
+                    PublishDate = d.pub_date
+                }).ToArray();
+
+
+private static WebResponse MakeRequest(string articleRequest)
+        {
+            try
+            {
+                HttpWebRequest request = WebRequest.Create(articleRequest) as HttpWebRequest;
+                using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
+                {
+                    if (response.StatusCode != HttpStatusCode.OK)
+                        throw new Exception(String.Format(
+                        "Server error (HTTP {0}: {1}).",
+                        response.StatusCode,
+                        response.StatusDescription));
+
+                    DataContractJsonSerializer jsonSerializer = new DataContractJsonSerializer(typeof(response));
+
+                    Stream Strm1 = new MemoryStream();
+                    response.GetResponseStream().CopyTo(Strm1);
+                    Strm1.Position = 0;
+
+                    TextReader rdr1 = new StreamReader(Strm1);
+                    JsonReader rdr2 = new JsonTextReader(rdr1);
+                        
+
+                    Newtonsoft.Json.JsonSerializer jsonSerial = new JsonSerializer();
+                    Newtonsoft.Json.Linq.JContainer x = (Newtonsoft.Json.Linq.JContainer)jsonSerial.Deserialize(rdr2);
+
+                    string test = "";
+
+                    //Manually Map properties
+                    Article articles = new Article();
+                    articles.ArticleURL = x.SelectToken("response.docs[0].web_url").Value<string>();
+                    articles.Headline = x.SelectToken("response.docs[0].headline.main").Value<string>();
+                    articles.PublishDate = x.SelectToken("response.docs[0].pub_date").Value<string>();
+                    articles.Source = x.SelectToken("response.docs[0].source").Value<string>();
+                    
+                   test += string.Format("\nArticle:{0} \nHeadline:{1} \nPublished Date:{2}  \nSource:{3}", articles.ArticleURL, articles.Headline, articles.PublishDate, articles.Source);
+
+                    Console.WriteLine(test);
+
+                    return response;
+                    //return jsonResponse;
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return null;
+            }
+        }
